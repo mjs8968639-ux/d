@@ -1172,11 +1172,12 @@ def _build_cons(product: ProductCandidate, intent: UserIntent) -> str | None:
     return None
 
 
-def build_recommendation_response(query: str, top_k: int = 5, mode: str | None = None) -> RecommendationResponse:
+def build_recommendation_response(user_input: str, top_k: int = 5, mode: str | None = None) -> RecommendationResponse:
     """端到端推荐流程。"""
 
-    intent = parse_user_intent(query)
-    intent.mode = _normalize_mode(mode) or _normalize_mode(intent.mode) or _detect_mode_from_query(query)
+    intent = parse_user_intent(user_input)
+    intent.raw_query = user_input
+    intent.mode = _normalize_mode(mode) or _normalize_mode(intent.mode) or _detect_mode_from_query(user_input)
     keyword_plan = generate_search_keywords(intent)
     candidates = fetch_products_by_keywords(keyword_plan.keywords)
     recommendations = select_best_products(candidates, intent, top_k=top_k)
@@ -1185,7 +1186,7 @@ def build_recommendation_response(query: str, top_k: int = 5, mode: str | None =
     summary = _build_summary(intent, keyword_plan.keywords, len(candidates), recommendations)
 
     return RecommendationResponse(
-        query=query,
+        query=user_input,
         summary=summary,
         intent=intent,
         keywords=keyword_plan.keywords,
@@ -1232,10 +1233,10 @@ def _mode_label(mode: str) -> str:
 
 
 def _detect_mode_from_query(query: str) -> str | None:
-    if any(term in query for term in ["品牌优先", "品牌好点", "大牌"]):
-        return "brand"
-    if any(term in query for term in ["最便宜", "极致便宜", "越便宜越好", "便宜点"]):
-        return "cheap"
-    if any(term in query for term in ["性价比", "划算", "值", "均衡"]):
-        return "value"
-    return None
+    if any(term in query for term in ["吃", "餐", "火锅", "辣", "美食"]):
+        return "food"
+    if any(term in query for term in ["手机", "电脑", "耳机", "商品"]):
+        return "product"
+    if any(term in query for term in ["电影", "电视剧", "看"]):
+        return "movie"
+    return "product"

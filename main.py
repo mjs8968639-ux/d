@@ -46,7 +46,7 @@ app = FastAPI(
 
 
 @app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+async def global_exception_handler(_request: Request, _exc: Exception) -> JSONResponse:
     return JSONResponse(
         status_code=200,
         content={
@@ -58,7 +58,7 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 
 
 @app.exception_handler(HTTPException)
-async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
+async def http_exception_handler(_request: Request, _exc: HTTPException) -> JSONResponse:
     return JSONResponse(
         status_code=200,
         content={
@@ -129,8 +129,8 @@ def _redis_keys_summary() -> dict:
         return {"redis_available": False}
 
 
-def build_debug_recommendation_payload(query: str) -> dict:
-    intent = parse_user_intent(query)
+def build_debug_recommendation_payload(user_input: str) -> dict:
+    intent = parse_user_intent(user_input)
     keyword_plan = generate_search_keywords(intent)
     candidates = fetch_products_by_keywords(keyword_plan.keywords)
     ai_raw = None
@@ -141,7 +141,7 @@ def build_debug_recommendation_payload(query: str) -> dict:
         ai_raw = {"error": str(exc)}
 
     return {
-        "query": query,
+        "query": user_input,
         "intent": intent.model_dump(),
         "keywords": keyword_plan.keywords,
         "candidate_count": len(candidates),
@@ -168,22 +168,34 @@ async def health() -> dict:
     return success_response({"status": "ok"})
 
 
+def _detect_mode_from_user_input(user_input: str) -> str:
+    if any(term in user_input for term in ["吃", "餐", "火锅", "辣", "美食"]):
+        return "food"
+    if any(term in user_input for term in ["手机", "电脑", "耳机", "商品"]):
+        return "product"
+    if any(term in user_input for term in ["电影", "电视剧", "看"]):
+        return "movie"
+    return "product"
+
+
 @app.post("/recommend")
 async def recommend(request: UserRequest) -> dict:
     """用户输入一句话，返回推荐结果。"""
 
     try:
-        response = build_recommendation_response(request.query, top_k=5, mode=request.mode)
-        _redis_hincrby("recommendation:query_impressions", request.query, len(response.recommendations))
-        CLICK_STATS["query_impressions"][request.query] += len(response.recommendations)
+        mode = _detect_mode_from_user_input(request.user_input)
+        response = build_recommendation_response(request.user_input, top_k=5, mode=mode)
+        _redis_hincrby("recommendation:query_impressions", request.user_input, len(response.recommendations))
+        CLICK_STATS["query_impressions"][request.user_input] += len(response.recommendations)
         return success_response(response.model_dump())
     except HTTPException as exc:
         return error_response(message=str(exc.detail) if exc.detail else "网络错误")
     except Exception:
         try:
-            fallback = build_recommendation_response(request.query, top_k=3, mode=request.mode)
-            _redis_hincrby("recommendation:query_impressions", request.query, len(fallback.recommendations))
-            CLICK_STATS["query_impressions"][request.query] += len(fallback.recommendations)
+            mode = _detect_mode_from_user_input(request.user_input)
+            fallback = build_recommendation_response(request.user_input, top_k=3, mode=mode)
+            _redis_hincrby("recommendation:query_impressions", request.user_input, len(fallback.recommendations))
+            CLICK_STATS["query_impressions"][request.user_input] += len(fallback.recommendations)
             return success_response(fallback.model_dump(), message="fallback")
         except Exception:
             return error_response(message="网络错误")
@@ -194,7 +206,7 @@ async def debug_recommend(request: UserRequest) -> dict:
     """返回调试信息和 AI 原始结果。"""
 
     try:
-        payload = build_debug_recommendation_payload(request.query)
+        payload = build_debug_recommendation_payload(request.user_input)
         return success_response(payload)
     except HTTPException as exc:
         return error_response(message=str(exc.detail) if exc.detail else "网络错误")

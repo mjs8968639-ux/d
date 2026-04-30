@@ -11,8 +11,7 @@ from pydantic import BaseModel, Field
 class UserRequest(BaseModel):
     """用户输入请求。"""
 
-    query: str = Field(..., description="用户的一句话需求")
-    mode: Optional[str] = Field(default=None, description="推荐模式：value、brand、cheap")
+    user_input: str = Field(..., description="用户的一句话需求")
 
 
 class ClickRequest(BaseModel):
