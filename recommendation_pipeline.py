@@ -23,6 +23,105 @@ from recommendation_models import (
 )
 
 
+FOOD_DATA: List[dict] = [
+    {
+        "title": "川味麻辣火锅",
+        "price": 68,
+        "score": 98,
+        "reason": "香辣过瘾，适合想吃重口味、喜欢火锅的用户",
+        "tag": "辣",
+        "image_url": "https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=800&q=80",
+    },
+    {
+        "title": "经典麻辣烫",
+        "price": 26,
+        "score": 96,
+        "reason": "麻辣鲜香，辣味突出，适合想快速解馋",
+        "tag": "辣",
+        "image_url": "https://images.unsplash.com/photo-1569058242252-92c7e3c1b7b7?auto=format&fit=crop&w=800&q=80",
+    },
+    {
+        "title": "重庆小面",
+        "price": 18,
+        "score": 93,
+        "reason": "汤面带辣，口味浓郁，适合喜欢面食和辣味的人",
+        "tag": "辣",
+        "image_url": "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=800&q=80",
+    },
+    {
+        "title": "湘菜剁椒鱼头",
+        "price": 88,
+        "score": 95,
+        "reason": "剁椒风味鲜辣，湘菜代表口味，适合重辣偏好",
+        "tag": "辣",
+        "image_url": "https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=800&q=80",
+    },
+    {
+        "title": "香辣冒菜",
+        "price": 32,
+        "score": 91,
+        "reason": "配菜丰富又香辣，适合想吃辣但又想吃得饱",
+        "tag": "辣",
+        "image_url": "https://images.unsplash.com/photo-1512058564366-18510be2db19?auto=format&fit=crop&w=800&q=80",
+    },
+    {
+        "title": "清汤牛肉粉",
+        "price": 24,
+        "score": 90,
+        "reason": "清淡顺口，汤底鲜而不辣，适合胃口清爽的选择",
+        "tag": "清淡",
+        "image_url": "https://images.unsplash.com/photo-1562967916-eb82221dfb92?auto=format&fit=crop&w=800&q=80",
+    },
+    {
+        "title": "鸡胸肉轻食沙拉",
+        "price": 35,
+        "score": 94,
+        "reason": "低油低盐，口味清淡，适合想吃轻食的人",
+        "tag": "清淡",
+        "image_url": "https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=800&q=80",
+    },
+    {
+        "title": "日式三文鱼饭团",
+        "price": 19,
+        "score": 88,
+        "reason": "口味清淡，方便轻盈，适合不想吃重辣的时候",
+        "tag": "清淡",
+        "image_url": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80",
+    },
+    {
+        "title": "清炒时蔬套餐",
+        "price": 22,
+        "score": 89,
+        "reason": "家常清淡，少油少辣，适合想吃得舒服一点",
+        "tag": "清淡",
+        "image_url": "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=800&q=80",
+    },
+    {
+        "title": "番茄鸡蛋盖饭",
+        "price": 20,
+        "score": 87,
+        "reason": "酸甜开胃但不辣，适合清淡口味和日常简餐",
+        "tag": "清淡",
+        "image_url": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80",
+    },
+    {
+        "title": "兰州牛肉面",
+        "price": 21,
+        "score": 86,
+        "reason": "面食经典，汤清味足，适合不想吃太重口的午餐",
+        "tag": "面食",
+        "image_url": "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=800&q=80",
+    },
+    {
+        "title": "煎饺拼小吃套餐",
+        "price": 28,
+        "score": 84,
+        "reason": "小吃组合丰富，适合想随便吃点、口味中等的人",
+        "tag": "小吃",
+        "image_url": "https://images.unsplash.com/photo-1490645935967-10de6ba17061?auto=format&fit=crop&w=800&q=80",
+    },
+]
+
 MOCK_PRODUCTS: List[ProductCandidate] = [
     ProductCandidate(
         id="taobao-1001",
@@ -294,6 +393,77 @@ def _parse_user_intent_fallback(query: str) -> UserIntent:
         scene=scene,
         features=features,
         extra_keywords=extra_keywords,
+    )
+
+
+def _food_match_score(item: dict, query: str) -> int:
+    title = str(item.get("title", ""))
+    reason = str(item.get("reason", ""))
+    tag = str(item.get("tag", ""))
+    score = int(item.get("score", 0))
+    haystack = f"{title} {reason} {tag}"
+
+    if "辣" in query and tag == "辣":
+        score += 25
+    if "清淡" in query and tag == "清淡":
+        score += 25
+    if "火锅" in query and ("火锅" in title or tag == "辣"):
+        score += 15
+    if any(keyword in query for keyword in ["面", "小吃", "粉", "饭"]):
+        if any(keyword in haystack for keyword in ["面", "小吃", "粉", "饭"]):
+            score += 10
+    if any(keyword in title for keyword in ["火锅", "麻辣烫", "川菜", "湘菜"]):
+        score += 5
+    return score
+
+
+def _build_food_recommendations(query: str, top_k: int = 3) -> List[RecommendedProduct]:
+    if "辣" in query:
+        candidates = [item for item in FOOD_DATA if item.get("tag") == "辣"]
+    elif "清淡" in query:
+        candidates = [item for item in FOOD_DATA if item.get("tag") == "清淡"]
+    else:
+        candidates = FOOD_DATA[:]
+
+    candidates = sorted(candidates, key=lambda item: _food_match_score(item, query), reverse=True)
+    selected = candidates[:top_k]
+
+    return [
+        RecommendedProduct(
+            title=str(item.get("title", "")),
+            price=float(item.get("price", 0)),
+            platform="food",
+            reason=str(item.get("reason", "")),
+            score=max(80, min(100, int(item.get("score", 80)))),
+            ranking_score=max(80, min(100, int(item.get("score", 80)))),
+            ranking_reason="基于口味关键词和评分优先筛选的 food 推荐",
+            pros=[str(item.get("tag", ""))] if item.get("tag") else [],
+            cons=None,
+            buy_link=str(item.get("image_url", "")),
+            commission=None,
+        )
+        for item in selected
+    ]
+
+
+def _build_food_summary(query: str, recommendations: List[RecommendedProduct]) -> str:
+    if "辣" in query:
+        return f"根据“{query}”匹配到更偏辣口味的食物推荐"
+    if "清淡" in query:
+        return f"根据“{query}”匹配到更清淡的食物推荐"
+    return f"根据“{query}”返回评分更高的食物推荐（共 {len(recommendations)} 条）"
+
+
+def _build_food_response(user_input: str, top_k: int = 3) -> RecommendationResponse:
+    recommendations = _build_food_recommendations(user_input, top_k=top_k)
+    intent = UserIntent(raw_query=user_input, mode="food")
+    return RecommendationResponse(
+        query=user_input,
+        summary=_build_food_summary(user_input, recommendations),
+        intent=intent,
+        keywords=["food"],
+        total_candidates=len(FOOD_DATA),
+        recommendations=recommendations,
     )
 
 
@@ -996,7 +1166,7 @@ def _choose_primary_term(ai_term: object, fallback_term: object, query: str) -> 
 
 
 def _detect_keyword_from_query(query: str) -> str | None:
-    for term in PRODUCT_HINTS + SCENE_HINTS:
+    for term in PRODUCT_HINTS + SCENE_HINTS + ["辣", "清淡", "火锅", "麻辣烫", "川菜", "湘菜", "面食", "小吃"]:
         if term in query:
             return term
     return None
@@ -1178,6 +1348,10 @@ def build_recommendation_response(user_input: str, top_k: int = 5, mode: str | N
     intent = parse_user_intent(user_input)
     intent.raw_query = user_input
     intent.mode = _normalize_mode(mode) or _normalize_mode(intent.mode) or _detect_mode_from_query(user_input)
+
+    if intent.mode == "food":
+        return _build_food_response(user_input, top_k=min(top_k, 3))
+
     keyword_plan = generate_search_keywords(intent)
     candidates = fetch_products_by_keywords(keyword_plan.keywords)
     recommendations = select_best_products(candidates, intent, top_k=top_k)
@@ -1233,7 +1407,7 @@ def _mode_label(mode: str) -> str:
 
 
 def _detect_mode_from_query(query: str) -> str | None:
-    if any(term in query for term in ["吃", "餐", "火锅", "辣", "美食"]):
+    if any(term in query for term in ["吃", "餐", "火锅", "辣", "清淡", "美食", "饭", "面", "小吃"]):
         return "food"
     if any(term in query for term in ["手机", "电脑", "耳机", "商品"]):
         return "product"
