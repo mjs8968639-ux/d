@@ -90,6 +90,8 @@ def build_signed_params(spec: PlatformRequestSpec, method: str, extra_params: Ma
         params["sign"] = _sign_taobao(params, secret)
     elif spec.sign_style == "jd":
         params["timestamp"] = params.get("timestamp") or _build_timestamp()
+        params.setdefault("v", "1.0")
+        params.setdefault("format", "json")
         params["app_key"] = app_key
         params["appKey"] = app_key
         params["sign"] = _sign_jd(params, secret)

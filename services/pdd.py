@@ -33,7 +33,18 @@ async def debug_pdd_request(action: str, keyword: str | None = None, goods_id: s
         params = build_signed_params(PDD_SPEC, spec.detail, {"goods_id_list": goods_id or keyword or ""})
         return debug_post(PDD_SPEC.base_url, params)
     if action == "search":
-        params = build_signed_params(PDD_SPEC, spec.search, {"keyword": keyword or goods_id or "", "page": 1, "page_size": 10})
+        query = keyword or goods_id or ""
+        params = build_signed_params(
+            PDD_SPEC,
+            spec.search,
+            {
+                "keyword": query,
+                "page": 1,
+                "page_size": 10,
+                "pid": _pdd_pid(),
+                "custom_parameters": _pdd_custom_parameters(query),
+            },
+        )
         return debug_post(PDD_SPEC.base_url, params)
     if action == "promotion":
         return await generate_pdd_promotion_url(goods_id or keyword or "")
@@ -84,6 +95,8 @@ def _search_pdd_real(keyword: str, page: int, page_size: int) -> List[Product]:
             "keyword": keyword,
             "page": page,
             "page_size": page_size,
+            "pid": _pdd_pid(),
+            "custom_parameters": _pdd_custom_parameters(keyword),
         },
     )
     response = send_post(PDD_SPEC.base_url, params)
@@ -120,6 +133,14 @@ def _to_product(item: dict, keyword: str, index: int, platform: str) -> Product:
     if item.get("cat_name"):
         tags.append(str(item.get("cat_name")))
     return Product(id=goods_id, title=title, price=price, original_price=original_price, platform=platform, image_url=image_url, sales=sales, detail_url=detail_url, shop_name=shop_name, tags=tags)
+
+
+def _pdd_pid() -> str:
+    return "44352893_315654118"
+
+
+def _pdd_custom_parameters(keyword: str) -> str:
+    return f'{{"keyword":"{keyword}","scene":"search"}}'
 
 
 def _search_pdd_mock(keyword: str, page: int, page_size: int) -> List[Product]:
