@@ -25,6 +25,14 @@ from recommendation_pipeline import (
     parse_user_intent,
     _call_ai_select_products,
 )
+from models import SearchRequest
+from services.marketplace_service import (
+    generate_marketplace_promotion_url,
+    get_marketplace_detail,
+    get_marketplace_orders,
+    platform_config_summary,
+    search_marketplace,
+)
 
 load_dotenv()
 
@@ -58,7 +66,7 @@ async def global_exception_handler(_request: Request, _exc: Exception) -> JSONRe
 
 
 @app.exception_handler(HTTPException)
-async def http_exception_handler(_request: Request, _exc: HTTPException) -> JSONResponse:
+async def http_exception_handler(_request: Request, exc: HTTPException) -> JSONResponse:
     return JSONResponse(
         status_code=200,
         content={
@@ -156,6 +164,8 @@ async def root() -> dict:
             "message": "AI 购物推荐系统运行中",
             "endpoints": {
                 "recommend": "/recommend (POST)",
+                "marketplace_search": "/marketplace/search (POST)",
+                "platform_config": "/marketplace/config (GET)",
                 "health": "/health (GET)",
                 "debug_recommend": "/debug/recommend (POST)",
             },
@@ -166,6 +176,52 @@ async def root() -> dict:
 @app.get("/health")
 async def health() -> dict:
     return success_response({"status": "ok"})
+
+
+@app.get("/marketplace/config")
+async def marketplace_config() -> dict:
+    return success_response(platform_config_summary())
+
+
+@app.post("/marketplace/search")
+async def marketplace_search(request: SearchRequest) -> dict:
+    try:
+        payload = await search_marketplace(request)
+        return success_response(payload.model_dump())
+    except HTTPException as exc:
+        return error_response(message=str(exc.detail) if exc.detail else "网络错误")
+    except Exception:
+        return error_response(message="网络错误")
+
+
+@app.get("/marketplace/{platform}/detail/{goods_id}")
+async def marketplace_detail(platform: str, goods_id: str) -> dict:
+    try:
+        return success_response(await get_marketplace_detail(platform, goods_id))
+    except HTTPException as exc:
+        return error_response(message=str(exc.detail) if exc.detail else "网络错误")
+    except Exception:
+        return error_response(message="网络错误")
+
+
+@app.get("/marketplace/{platform}/promotion/{goods_id}")
+async def marketplace_promotion(platform: str, goods_id: str) -> dict:
+    try:
+        return success_response(await generate_marketplace_promotion_url(platform, goods_id))
+    except HTTPException as exc:
+        return error_response(message=str(exc.detail) if exc.detail else "网络错误")
+    except Exception:
+        return error_response(message="网络错误")
+
+
+@app.get("/marketplace/orders")
+async def marketplace_orders(platform: str | None = None) -> dict:
+    try:
+        return success_response(await get_marketplace_orders(platform))
+    except HTTPException as exc:
+        return error_response(message=str(exc.detail) if exc.detail else "网络错误")
+    except Exception:
+        return error_response(message="网络错误")
 
 
 def _detect_mode_from_user_input(user_input: str) -> str:
