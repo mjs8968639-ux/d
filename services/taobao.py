@@ -9,7 +9,7 @@ from typing import List
 
 from models import Product
 from services.platform_adapters import get_platform_api_spec
-from services.platform_client import PlatformRequestSpec, build_signed_params, send_get
+from services.platform_client import PlatformRequestSpec, build_signed_params, debug_get, send_get
 
 TAOBAO_SPEC = PlatformRequestSpec(
     base_url="https://gw.api.taobao.com/router/rest",
@@ -25,6 +25,19 @@ async def search_taobao(keyword: str, page: int, page_size: int) -> List[Product
         return _search_taobao_real(keyword, page, page_size)
     except Exception:
         return _search_taobao_mock(keyword, page, page_size)
+
+
+async def debug_taobao_request(action: str, keyword: str | None = None, goods_id: str | None = None) -> dict:
+    spec = get_platform_api_spec("taobao")
+    if action == "detail":
+        params = build_signed_params(TAOBAO_SPEC, spec.detail, {"num_iids": goods_id or keyword or ""})
+        return debug_get(TAOBAO_SPEC.base_url, params)
+    if action == "search":
+        params = build_signed_params(TAOBAO_SPEC, spec.search, {"q": keyword or goods_id or "", "page_no": 1, "page_size": 10})
+        return debug_get(TAOBAO_SPEC.base_url, params)
+    if action == "promotion":
+        return await generate_taobao_promotion_url(goods_id or keyword or "")
+    return {"ok": False, "error": f"不支持的淘宝 debug action：{action}"}
 
 
 async def get_taobao_detail(num_iids: str) -> dict:

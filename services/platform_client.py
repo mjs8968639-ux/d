@@ -16,6 +16,8 @@ from typing import Any, Mapping
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
+SENSITIVE_KEYS = {"sign", "client_secret", "secret", "app_secret", "access_token", "token"}
+
 
 @dataclass(frozen=True)
 class PlatformRequestSpec:
@@ -104,6 +106,44 @@ def send_post(url: str, params: Mapping[str, Any]) -> dict[str, Any]:
     with urlopen(req, timeout=20) as resp:
         body = resp.read().decode("utf-8")
     return _parse_json(body)
+
+
+def debug_get(url: str, params: Mapping[str, Any]) -> dict[str, Any]:
+    query = urlencode({k: "" if v is None else str(v) for k, v in params.items()})
+    request_url = f"{url}?{query}"
+    try:
+        response = send_get(url, params)
+        return {"ok": True, "request_url": _mask_url(request_url), "params": mask_sensitive_params(params), "response": response}
+    except Exception as exc:
+        return {"ok": False, "request_url": _mask_url(request_url), "params": mask_sensitive_params(params), "error": str(exc)}
+
+
+def debug_post(url: str, params: Mapping[str, Any]) -> dict[str, Any]:
+    try:
+        response = send_post(url, params)
+        return {"ok": True, "request_url": url, "params": mask_sensitive_params(params), "response": response}
+    except Exception as exc:
+        return {"ok": False, "request_url": url, "params": mask_sensitive_params(params), "error": str(exc)}
+
+
+def mask_sensitive_params(params: Mapping[str, Any]) -> dict[str, Any]:
+    masked: dict[str, Any] = {}
+    for key, value in params.items():
+        if key.lower() in SENSITIVE_KEYS or "secret" in key.lower():
+            masked[key] = _mask_value(str(value))
+        else:
+            masked[key] = value
+    return masked
+
+
+def _mask_url(url: str) -> str:
+    return url.replace("sign=", "sign=***")
+
+
+def _mask_value(value: str) -> str:
+    if len(value) <= 8:
+        return "***"
+    return f"{value[:4]}***{value[-4:]}"
 
 
 def _parse_json(body: str) -> dict[str, Any]:

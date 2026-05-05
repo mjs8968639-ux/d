@@ -12,9 +12,9 @@ from urllib.parse import quote_plus
 
 from models import Product, SearchRequest, SearchResponse
 from services.platform_adapters import get_platform_api_spec
-from services.taobao import generate_taobao_promotion_url, get_taobao_detail, get_taobao_orders, search_taobao
-from services.jd import generate_jd_promotion_url, get_jd_detail, get_jd_orders, search_jd
-from services.pdd import generate_pdd_promotion_url, get_pdd_detail, get_pdd_orders, search_pdd
+from services.taobao import debug_taobao_request, generate_taobao_promotion_url, get_taobao_detail, get_taobao_orders, search_taobao
+from services.jd import debug_jd_request, generate_jd_promotion_url, get_jd_detail, get_jd_orders, search_jd
+from services.pdd import debug_pdd_request, generate_pdd_promotion_url, get_pdd_detail, get_pdd_orders, search_pdd
 
 PLATFORM_WEIGHTS = {
     "taobao": 1.0,
@@ -82,6 +82,18 @@ async def search_marketplace(request: SearchRequest) -> SearchResponse:
     else:
         items = []
     return SearchResponse(total=len(items), items=items)
+
+
+async def debug_marketplace_request(platform: str, action: str, keyword: str | None = None, goods_id: str | None = None) -> dict:
+    platform = platform.lower().strip()
+    action = action.lower().strip()
+    if platform == "taobao":
+        return await debug_taobao_request(action=action, keyword=keyword, goods_id=goods_id)
+    if platform == "jd":
+        return await debug_jd_request(action=action, keyword=keyword, goods_id=goods_id)
+    if platform == "pdd":
+        return await debug_pdd_request(action=action, keyword=keyword, goods_id=goods_id)
+    return {"ok": False, "error": f"不支持的平台：{platform}"}
 
 
 async def get_marketplace_detail(platform: str, goods_id: str) -> dict:

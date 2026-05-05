@@ -9,7 +9,7 @@ from typing import List
 
 from models import Product
 from services.platform_adapters import get_platform_api_spec
-from services.platform_client import PlatformRequestSpec, build_signed_params, send_post
+from services.platform_client import PlatformRequestSpec, build_signed_params, debug_post, send_post
 
 PDD_SPEC = PlatformRequestSpec(
     base_url="https://gw-api.pinduoduo.com/api/router",
@@ -25,6 +25,19 @@ async def search_pdd(keyword: str, page: int, page_size: int) -> List[Product]:
         return _search_pdd_real(keyword, page, page_size)
     except Exception:
         return _search_pdd_mock(keyword, page, page_size)
+
+
+async def debug_pdd_request(action: str, keyword: str | None = None, goods_id: str | None = None) -> dict:
+    spec = get_platform_api_spec("pdd")
+    if action == "detail":
+        params = build_signed_params(PDD_SPEC, spec.detail, {"goods_id_list": goods_id or keyword or ""})
+        return debug_post(PDD_SPEC.base_url, params)
+    if action == "search":
+        params = build_signed_params(PDD_SPEC, spec.search, {"keyword": keyword or goods_id or "", "page": 1, "page_size": 10})
+        return debug_post(PDD_SPEC.base_url, params)
+    if action == "promotion":
+        return await generate_pdd_promotion_url(goods_id or keyword or "")
+    return {"ok": False, "error": f"不支持的拼多多 debug action：{action}"}
 
 
 async def get_pdd_detail(goods_id: str) -> dict:

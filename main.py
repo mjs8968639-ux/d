@@ -27,6 +27,7 @@ from recommendation_pipeline import (
 )
 from models import SearchRequest
 from services.marketplace_service import (
+    debug_marketplace_request,
     generate_marketplace_promotion_url,
     get_marketplace_detail,
     get_marketplace_orders,
@@ -208,6 +209,16 @@ async def marketplace_detail(platform: str, goods_id: str) -> dict:
 async def marketplace_promotion(platform: str, goods_id: str) -> dict:
     try:
         return success_response(await generate_marketplace_promotion_url(platform, goods_id))
+    except HTTPException as exc:
+        return error_response(message=str(exc.detail) if exc.detail else "网络错误")
+    except Exception:
+        return error_response(message="网络错误")
+
+
+@app.get("/marketplace/{platform}/debug")
+async def marketplace_debug(platform: str, action: str, keyword: str | None = None, goods_id: str | None = None) -> dict:
+    try:
+        return success_response(await debug_marketplace_request(platform, action, keyword=keyword, goods_id=goods_id))
     except HTTPException as exc:
         return error_response(message=str(exc.detail) if exc.detail else "网络错误")
     except Exception:

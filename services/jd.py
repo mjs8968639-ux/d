@@ -9,7 +9,7 @@ from typing import List
 
 from models import Product
 from services.platform_adapters import get_platform_api_spec
-from services.platform_client import PlatformRequestSpec, build_signed_params, send_get
+from services.platform_client import PlatformRequestSpec, build_signed_params, debug_get, send_get
 
 JD_SPEC = PlatformRequestSpec(
     base_url="https://api.jd.com/routerjson",
@@ -25,6 +25,19 @@ async def search_jd(keyword: str, page: int, page_size: int) -> List[Product]:
         return _search_jd_real(keyword, page, page_size)
     except Exception:
         return _search_jd_mock(keyword, page, page_size)
+
+
+async def debug_jd_request(action: str, keyword: str | None = None, goods_id: str | None = None) -> dict:
+    spec = get_platform_api_spec("jd")
+    if action == "detail":
+        params = build_signed_params(JD_SPEC, spec.detail, {"skuIds": goods_id or keyword or ""})
+        return debug_get(JD_SPEC.base_url, params)
+    if action == "search":
+        params = build_signed_params(JD_SPEC, spec.search, {"skuIds": keyword or goods_id or "", "pageNo": 1, "pageSize": 10})
+        return debug_get(JD_SPEC.base_url, params)
+    if action == "promotion":
+        return await generate_jd_promotion_url(goods_id or keyword or "")
+    return {"ok": False, "error": f"不支持的京东 debug action：{action}"}
 
 
 async def get_jd_detail(sku_ids: str) -> dict:
