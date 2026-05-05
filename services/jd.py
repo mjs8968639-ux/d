@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import random
+import json
 from typing import List
 
 from models import Product
@@ -33,7 +34,11 @@ async def debug_jd_request(action: str, keyword: str | None = None, goods_id: st
         params = build_signed_params(JD_SPEC, spec.detail, {"skuIds": goods_id or keyword or ""})
         return debug_get(JD_SPEC.base_url, params)
     if action == "search":
-        params = build_signed_params(JD_SPEC, spec.search, {"skuIds": keyword or goods_id or "", "pageNo": 1, "pageSize": 10})
+        params = build_signed_params(
+            JD_SPEC,
+            spec.search,
+            {"360buy_param_json": json.dumps({"goodsReq": {"keyword": keyword or goods_id or "", "pageIndex": 1, "pageSize": 10}}, ensure_ascii=False)},
+        )
         return debug_get(JD_SPEC.base_url, params)
     if action == "promotion":
         return await generate_jd_promotion_url(goods_id or keyword or "")
@@ -43,7 +48,11 @@ async def debug_jd_request(action: str, keyword: str | None = None, goods_id: st
 async def get_jd_detail(sku_ids: str) -> dict:
     try:
         spec = get_platform_api_spec("jd")
-        params = build_signed_params(JD_SPEC, spec.detail, {"skuIds": sku_ids})
+        params = build_signed_params(
+            JD_SPEC,
+            spec.detail,
+            {"360buy_param_json": json.dumps({"skuIds": [sku_ids]}, ensure_ascii=False)},
+        )
         return send_get(JD_SPEC.base_url, params)
     except Exception:
         return {"skuIds": sku_ids}
@@ -52,7 +61,11 @@ async def get_jd_detail(sku_ids: str) -> dict:
 async def generate_jd_promotion_url(sku_ids: str) -> dict:
     try:
         spec = get_platform_api_spec("jd")
-        params = build_signed_params(JD_SPEC, spec.promotion, {"skuIds": sku_ids})
+        params = build_signed_params(
+            JD_SPEC,
+            spec.promotion,
+            {"360buy_param_json": json.dumps({"materialId": f"https://item.jd.com/{sku_ids}.html"}, ensure_ascii=False)},
+        )
         return send_get(JD_SPEC.base_url, params)
     except Exception:
         return {"skuIds": sku_ids, "promotion_url": f"https://item.jd.com/{sku_ids}.html"}
@@ -61,7 +74,11 @@ async def generate_jd_promotion_url(sku_ids: str) -> dict:
 async def get_jd_orders(page_no: int | None = None) -> dict:
     try:
         spec = get_platform_api_spec("jd")
-        params = build_signed_params(JD_SPEC, spec.order, {"pageNo": page_no or 1})
+        params = build_signed_params(
+            JD_SPEC,
+            spec.order,
+            {"360buy_param_json": json.dumps({"pageNo": page_no or 1, "pageSize": 20}, ensure_ascii=False)},
+        )
         return send_get(JD_SPEC.base_url, params)
     except Exception:
         return {"orders": []}
@@ -69,7 +86,11 @@ async def get_jd_orders(page_no: int | None = None) -> dict:
 
 def _search_jd_real(keyword: str, page: int, page_size: int) -> List[Product]:
     spec = get_platform_api_spec("jd")
-    params = build_signed_params(JD_SPEC, spec.search, {"skuIds": keyword, "pageNo": page, "pageSize": page_size})
+    params = build_signed_params(
+        JD_SPEC,
+        spec.search,
+        {"360buy_param_json": json.dumps({"goodsReq": {"keyword": keyword, "pageIndex": page, "pageSize": page_size}}, ensure_ascii=False)},
+    )
     response = send_get(JD_SPEC.base_url, params)
     items = _extract_items(response)
     return [_to_product(item, keyword, i, "jd") for i, item in enumerate(items)]

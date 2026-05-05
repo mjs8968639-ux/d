@@ -44,6 +44,10 @@ def _build_timestamp() -> str:
     return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 
 
+def _build_unix_timestamp() -> str:
+    return str(int(time.time()))
+
+
 def _sign_pdd(params: Mapping[str, Any], secret: str) -> str:
     items = [f"{k}{params[k]}" for k in sorted(params) if k not in {"sign", "access_token"} and params[k] not in (None, "")]
     raw = f"{secret}{''.join(items)}{secret}"
@@ -70,20 +74,23 @@ def build_signed_params(spec: PlatformRequestSpec, method: str, extra_params: Ma
 
     params: dict[str, Any] = dict(extra_params)
     params[spec.method_param] = method
-    params["timestamp"] = params.get("timestamp") or _build_timestamp()
 
     if spec.sign_style == "pdd":
+        params["timestamp"] = params.get("timestamp") or _build_unix_timestamp()
         params["type"] = method
         params["client_id"] = app_key
         params.setdefault("data_type", "JSON")
         params["sign"] = _sign_pdd(params, secret)
     elif spec.sign_style == "taobao":
+        params["timestamp"] = params.get("timestamp") or _build_timestamp()
         params["app_key"] = app_key
         params.setdefault("format", "json")
         params.setdefault("v", "2.0")
         params.setdefault("sign_method", "md5")
         params["sign"] = _sign_taobao(params, secret)
     elif spec.sign_style == "jd":
+        params["timestamp"] = params.get("timestamp") or _build_timestamp()
+        params["app_key"] = app_key
         params["appKey"] = app_key
         params["sign"] = _sign_jd(params, secret)
     else:

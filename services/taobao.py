@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import random
+import os
 from typing import List
 
 from models import Product
@@ -27,13 +28,19 @@ async def search_taobao(keyword: str, page: int, page_size: int) -> List[Product
         return _search_taobao_mock(keyword, page, page_size)
 
 
+def _taobao_adzone_id() -> str:
+    pid = os.getenv("TAOBAO_PID", "").strip()
+    parts = pid.split("_")
+    return parts[-1] if parts else ""
+
+
 async def debug_taobao_request(action: str, keyword: str | None = None, goods_id: str | None = None) -> dict:
     spec = get_platform_api_spec("taobao")
     if action == "detail":
         params = build_signed_params(TAOBAO_SPEC, spec.detail, {"num_iids": goods_id or keyword or ""})
         return debug_get(TAOBAO_SPEC.base_url, params)
     if action == "search":
-        params = build_signed_params(TAOBAO_SPEC, spec.search, {"q": keyword or goods_id or "", "page_no": 1, "page_size": 10})
+        params = build_signed_params(TAOBAO_SPEC, spec.search, {"q": keyword or goods_id or "", "adzone_id": _taobao_adzone_id(), "page_no": 1, "page_size": 10})
         return debug_get(TAOBAO_SPEC.base_url, params)
     if action == "promotion":
         return await generate_taobao_promotion_url(goods_id or keyword or "")
@@ -83,7 +90,7 @@ async def get_taobao_orders(start_time: str | None = None) -> dict:
 
 def _search_taobao_real(keyword: str, page: int, page_size: int) -> List[Product]:
     spec = get_platform_api_spec("taobao")
-    params = build_signed_params(TAOBAO_SPEC, spec.search, {"q": keyword, "page_no": page, "page_size": page_size})
+    params = build_signed_params(TAOBAO_SPEC, spec.search, {"q": keyword, "adzone_id": _taobao_adzone_id(), "page_no": page, "page_size": page_size})
     response = send_get(TAOBAO_SPEC.base_url, params)
     items = _extract_items(response)
     return [_to_product(item, keyword, i, "taobao") for i, item in enumerate(items)]
